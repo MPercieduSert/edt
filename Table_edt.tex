@@ -1,0 +1,201 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[right=0.5cm,left=0.5cm,top=0.5cm,bottom=1.75cm]{geometry}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage[utf8]{inputenc}
+\usepackage{xargs}
+\usetikzlibrary{arrows,automata}
+\usetikzlibrary{matrix}
+\usetikzlibrary{positioning}
+\usetikzlibrary{shapes.geometric}
+\usetikzlibrary{shapes.multipart}
+
+\tikzset{
+	entity/.style={
+		rectangle split,
+		rectangle split parts=2,
+		draw=black, very thick,
+		inner sep=2pt,
+		text centered,
+	},
+	table/.style={
+		rectangle split,
+		rectangle split parts=3,
+		draw=black, very thick,
+		inner sep=2pt,
+		text centered,
+	},
+	relation/.style={
+	ellipse,
+	draw=black, very thick,
+	inner sep=2pt,
+	text centered,
+	},
+	lien/.style={
+	fill=white,
+	%above,
+	%sloped,
+	},
+	relationWithAttribut/.style={
+		ellipse split,
+		draw=black, very thick,
+		inner sep=2pt,
+		text centered,
+	},
+}
+\newcommandx{\entity}[3][3=]{
+\node[entity,#3] (#1) {
+	#1
+	\nodepart{two}
+	\begin{tabular}{l}
+		#2
+	\end{tabular}};
+}
+\newcommandx{\relation}[2][2=]{
+	\node[relation,#2](#1){#1};
+}
+\newcommandx{\relationWithAttribut}[3][3=]{
+\node[relationWithAttribut,#3](#1)
+{#1 \nodepart{lower} #2};
+}
+\newcommandx{\relationWithAttributs}[3][3=]{
+	\node[relationWithAttribut,#3](#1)
+	{#1 \nodepart{lower} 	\begin{tabular}{l}
+			#2
+	\end{tabular}};
+}
+
+\newcommand{\lien}[3]{\path (#1) edge node[lien] {#3} (#2);}
+\newcommandx{\tableEntity}[4][4=]{
+	\node[table,#4] (#1) {
+		#1
+		\nodepart{two}
+		\begin{tabular}{l@{\ \ :}l@{\ \ [}l@{](}l@{)}l  }
+			id & uint &id&ID&\\
+			#2
+		\end{tabular}
+		\nodepart{three}
+		\begin{tabular}{l}
+			primary key (id)\\
+			#3
+		\end{tabular}
+	};
+}
+\newcommand{\lkey}[2]{\path[<-] (#1) edge (#2);}
+\newcommand{\lkeyloop}[1]{\draw[->] (#1.north west) ..controls+(60:1.25cm) and +(120:1.25cm) .. (#1.95);}
+\newcommand{\fkey}[2]{foreign key (#1) $\to$ #2}
+\newcommand{\unique}[1]{unique (#1)}
+%Arbre
+\newcommandx{\arbreERD}[2][2=]{
+	\node[relation,#2](filiation#1){filiation#1};
+	\entity{Arbre#1}{feuille\\num}[above=0.75cm of filiation#1]
+	\node[relation,above=1.65cm of Arbre#1](parent#1){parent#1};
+}
+\newcommand{\lienArbreERD}[1]{
+	\lien{Arbre#1.north west}{parent#1.west}{\begin{tabular}{c}fils\\$0-N$\end{tabular}}
+	\lien{Arbre#1.north east}{parent#1.east}{\begin{tabular}{c}parent\\$0-1$\end{tabular}}
+	\lien{Arbre#1.south}{filiation#1.north}{$1$}
+}
+\newcommandx{\arbreTable}[2][2=]{
+	\tableEntity{Arbre#1}{
+		feuille & bool &bool& fl &\\
+		num& int &intSup0& num&\\
+		parent & uint &idSup1Null& pt & NULL\\
+	}{
+		\fkey{parent}{Arbre#1}\\
+		\unique{parent, num}
+	}{#2}
+}
+\newcommand{\lkeyArbre}[1]{\lkeyloop{Arbre#1}}
+\newcommand{\ent}{purple}
+\newcommand{\bdd}{blue}
+\newcommand{\gui}{violet}
+\begin{document}
+
+\section{ERD}
+\begin{tikzpicture}[thick]
+\footnotesize
+
+	\entity{Prof}{
+		nom
+	}
+	
+	\relation{enseigne}[below=0.75cm of Prof]
+	
+	\entity{Matiere}{
+		num\\
+		nom
+	}[below=0.75cm of enseigne]
+	
+	\relation{contrainte}[below=1cm of Matiere]
+	
+	\entity{Horaire}{
+		num\\
+		code
+	}[below=3cm of Matiere]
+
+	\relation{ventilation}[right=2cm of Matiere]
+	
+	\entity{Creneau}{
+		num\\
+		code
+	}[right=2cm of ventilation]
+
+	\relation{affectation}[below=2cm of ventilation]
+	
+\lien{Prof}{enseigne}{$0-N$}
+\lien{enseigne}{Matiere}{$1$}
+\lien{Matiere}{contrainte}{$0-N$}
+\lien{contrainte}{Horaire}{$1$}
+\lien{Matiere}{ventilation}{$0-N$}
+\lien{ventilation}{Creneau}{$1$}
+\lien{Creneau}{affectation}{$0-N$}
+\lien{affectation}{Horaire}{$0-1$}
+
+\end{tikzpicture}
+\subsection{Tables}
+\begin{tikzpicture}[thick]
+\scriptsize
+
+	\tableEntity{Prof}{
+		nom&text&stringNotEmpty&nm&
+	}{
+		\unique{nom}\\
+	}[]
+
+	\tableEntity{Matiere}{
+		id\_prof&uint&idSup1&idp\\
+		num&int&intSup0&num\\
+		nom&text&stringNotEmpty&nm&
+	}{
+		\fkey{id\_prof}{Prof}\\
+		\unique{id\_prof, num}
+	}[below=2cm of Prof]
+	
+	\tableEntity{Horaire}{
+		id\_matiere&uint&idSup1&idm\\
+		id\_creneau&uint&idSup1Null&idc&NULL\\
+		num&int&intSup0&num\\
+		code&uint&code&cd
+	}{
+		\fkey{id\_matiere}{Matiere}\\
+		\fkey{id\_creneau}{Creneau}\\
+		\unique{id\_matiere, num}
+	}[below=2cm of Matiere]
+	
+	\tableEntity{Creneau}{
+		id\_matiere&unit&idSup1&idm\\
+		num&int&intSup0&num\\
+		code&uint&code&cd
+	}{
+		\unique{id\_matiere, num}
+	}[right=3cm of Matiere]
+	
+
+\lkey{Prof}{Matiere}
+\lkey{Matiere}{Horaire}
+\lkey{Matiere}{Creneau}
+\lkey{Creneau}{Horaire}
+\end{tikzpicture}	
+\end{document}
